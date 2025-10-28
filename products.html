@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shopico – Products</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header"></header>
+    <main class="container section">
+      <div class="catalog-toolbar">
+        <input id="search" class="input" type="search" placeholder="Search products..." />
+        <select id="category" class="select"></select>
+        <select id="sort" class="select">
+          <option value="popular">Most popular</option>
+          <option value="price-asc">Price: Low to High</option>
+          <option value="price-desc">Price: High to Low</option>
+          <option value="rating-desc">Rating</option>
+        </select>
+      </div>
+      <div id="products-grid" class="product-grid"></div>
+      <div id="empty-state" class="empty-state" hidden>
+        <p>No products match your filters.</p>
+      </div>
+    </main>
+    <footer id="site-footer"></footer>
+
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/products.js"></script>
+  </body>
+  </html>
+
+

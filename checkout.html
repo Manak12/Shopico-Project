@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shopico – Checkout</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/css/styles.css" />
+  </head>
+  <body>
+    <header id="site-header"></header>
+    <main class="container section">
+      <h1>Checkout</h1>
+      <div class="checkout">
+        <form id="checkout-form" class="card">
+          <h2>Shipping details</h2>
+          <div class="grid-2">
+            <label>First name<input required name="firstName" class="input" /></label>
+            <label>Last name<input required name="lastName" class="input" /></label>
+          </div>
+          <label>Email<input required type="email" name="email" class="input" /></label>
+          <label>Address<input required name="address" class="input" /></label>
+          <div class="grid-2">
+            <label>City<input required name="city" class="input" /></label>
+            <label>Postal code<input required name="zip" class="input" /></label>
+          </div>
+          <h2>Payment</h2>
+          <div class="grid-2">
+            <label>Card number<input required name="card" class="input" placeholder="1234 5678 9012 3456" /></label>
+            <label>Expiry<input required name="expiry" class="input" placeholder="MM/YY" /></label>
+          </div>
+          <label>CVC<input required name="cvc" class="input" placeholder="123" /></label>
+          <button class="btn btn--primary" type="submit">Place order</button>
+        </form>
+        <aside class="card order-summary">
+          <h2>Order summary</h2>
+          <div id="summary-items"></div>
+          <div class="summary-line"><span>Subtotal</span><span id="summary-subtotal">$0.00</span></div>
+          <div class="summary-line"><span>Shipping</span><span id="summary-shipping">Free</span></div>
+          <div class="summary-line total"><span>Total</span><span id="summary-total">$0.00</span></div>
+        </aside>
+      </div>
+    </main>
+    <footer id="site-footer"></footer>
+
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/checkout.js"></script>
+  </body>
+  </html>
+
+
