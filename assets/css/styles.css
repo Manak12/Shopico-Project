@@ -37,6 +37,7 @@ p { color: var(--muted); }
   position: sticky; top: 0; z-index: 20;
   background: #131921; /* Amazon-like dark header */
   border-bottom: 0;
+  margin-bottom: 20px;
 }
 .site-nav__inner { display: grid; grid-template-columns: 180px 1fr; align-items: center; gap: 14px; padding: 12px 0; }
 .logo { 
