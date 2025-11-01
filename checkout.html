@@ -6,45 +6,51 @@
     <title>Shopico – Checkout</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="assets/css/styles.css" />
   </head>
-  <body>
+  <body class="checkout-page">
     <header id="site-header"></header>
     <main class="container section">
-      <h1>Checkout</h1>
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <h1 class="m-0">Checkout</h1>
+        <a class="btn" href="cart.html">Back to cart</a>
+      </div>
       <div class="checkout">
-        <form id="checkout-form" class="card">
+        <form id="checkout-form" class="card checkout-form">
           <h2>Shipping details</h2>
           <div class="grid-2">
-            <label>First name<input required name="firstName" class="input" /></label>
-            <label>Last name<input required name="lastName" class="input" /></label>
+            <label><span>First name</span><input required name="firstName" class="input" /></label>
+            <label><span>Last name</span><input required name="lastName" class="input" /></label>
           </div>
-          <label>Email<input required type="email" name="email" class="input" /></label>
-          <label>Address<input required name="address" class="input" /></label>
+          <label><span>Email</span><input required type="email" name="email" class="input" /></label>
+          <label><span>Address</span><input required name="address" class="input" /></label>
           <div class="grid-2">
-            <label>City<input required name="city" class="input" /></label>
-            <label>Postal code<input required name="zip" class="input" /></label>
+            <label><span>City</span><input required name="city" class="input" /></label>
+            <label><span>Postal code</span><input required name="zip" class="input" /></label>
           </div>
           <h2>Payment</h2>
           <div class="grid-2">
-            <label>Card number<input required name="card" class="input" placeholder="1234 5678 9012 3456" /></label>
-            <label>Expiry<input required name="expiry" class="input" placeholder="MM/YY" /></label>
+            <label><span>Card number</span><input required name="card" class="input" placeholder="1234 5678 9012 3456" /></label>
+            <label><span>Expiry</span><input required name="expiry" class="input" placeholder="MM/YY" /></label>
           </div>
-          <label>CVC<input required name="cvc" class="input" placeholder="123" /></label>
-          <button class="btn btn--primary" type="submit">Place order</button>
+          <label><span>CVC</span><input required name="cvc" class="input" placeholder="123" /></label>
+          <button class="btn btn--primary" type="submit" style="margin-top: 8px;">Place order</button>
         </form>
         <aside class="card order-summary">
           <h2>Order summary</h2>
           <div id="summary-items"></div>
           <div class="summary-line"><span>Subtotal</span><span id="summary-subtotal">$0.00</span></div>
           <div class="summary-line"><span>Shipping</span><span id="summary-shipping">Free</span></div>
+          <div id="summary-coupon"></div>
           <div class="summary-line total"><span>Total</span><span id="summary-total">$0.00</span></div>
         </aside>
       </div>
     </main>
     <footer id="site-footer"></footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="assets/js/data.js"></script>
     <script src="assets/js/app.js"></script>
     <script src="assets/js/checkout.js"></script>

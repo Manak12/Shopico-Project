@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <div>
                 <div class="pill">${p.category}</div>
                 <h3 style="margin:4px 0 6px">${p.title}</h3>
-                <div class="rating" style="color:var(--muted)">★ ${p.rating}</div>
+                <div class="rating" style="color:var(--muted)">★ ${p.rating.toFixed(1)}</div>
               </div>
               <button class="btn btn--danger" onclick="removeItem('${p.id}')">Remove</button>
             </div>
@@ -39,8 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const subtotal = cart.reduce((sum, it) => {
       const p = getProductById(it.id); return sum + p.price * it.qty;
     }, 0);
-    const coupon = (localStorage.getItem('coupon') || '').toUpperCase();
-    const discount = coupon === 'SAVE10' ? Math.round(subtotal * 0.10 * 100) / 100 : 0;
+    const coupon = localStorage.getItem('coupon') || '';
+    const discount = calculateCouponDiscount(coupon, subtotal);
     const total = Math.max(0, subtotal - discount);
 
     container.innerHTML = `
@@ -51,20 +51,42 @@ document.addEventListener('DOMContentLoaded', () => {
         <h2>Summary</h2>
         <div class="summary-line"><span>Subtotal</span><span>${formatCurrency(subtotal)}</span></div>
         <div class="summary-line"><span>Shipping</span><span>Free</span></div>
-        <div class="summary-line"><span>Coupon</span><span>${discount ? `- ${formatCurrency(discount)}` : '-'}</span></div>
+        <div class="summary-line"><span>Coupon${coupon ? ` (${coupon.toUpperCase()})` : ''}</span><span>${discount ? `- ${formatCurrency(discount)}` : '-'}</span></div>
         <div class="coupon" style="margin-top:8px">
-          <input id="coupon-input" class="input" placeholder="Apply coupon (e.g., SAVE10)" />
-          <button id="coupon-apply" class="btn">Apply</button>
+          <input id="coupon-input" class="input" placeholder="Enter code (e.g., SAVE10, SAVE20)" value="${coupon}" />
+          ${coupon && discount > 0 ? `<button id="coupon-remove" class="btn btn-sm btn-outline-danger" type="button">Remove</button>` : '<button id="coupon-apply" class="btn">Apply</button>'}
         </div>
+        ${coupon && discount === 0 ? '<small class="text-danger mt-1 d-block">Invalid coupon code</small>' : ''}
         <div class="summary-line total"><span>Total</span><span>${formatCurrency(total)}</span></div>
         <div class="summary-line"><span>Delivery</span><span>Estimated in 2–4 days</span></div>
         <a class="btn btn--primary" href="checkout.html">Checkout</a>
       </aside>`;
     const inp = document.getElementById('coupon-input');
-    const btn = document.getElementById('coupon-apply');
-    if (inp && btn) {
+    const applyBtn = document.getElementById('coupon-apply');
+    const removeBtn = document.getElementById('coupon-remove');
+    if (inp) {
       inp.value = coupon || '';
-      btn.onclick = () => { localStorage.setItem('coupon', inp.value.trim()); render(); };
+      if (applyBtn) {
+        applyBtn.onclick = () => {
+          const code = inp.value.trim();
+          localStorage.setItem('coupon', code);
+          const testDiscount = calculateCouponDiscount(code, subtotal);
+          if (code && testDiscount > 0) {
+            showToast(`Coupon ${code.toUpperCase()} applied! ${Math.round((testDiscount / subtotal) * 100)}% off`, 'success');
+          } else if (code && testDiscount === 0) {
+            showToast('Invalid coupon code', 'default');
+          }
+          render();
+        };
+      }
+      if (removeBtn) {
+        removeBtn.onclick = () => {
+          localStorage.removeItem('coupon');
+          inp.value = '';
+          showToast('Coupon removed', 'success');
+          render();
+        };
+      }
     }
   };
 

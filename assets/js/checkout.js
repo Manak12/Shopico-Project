@@ -16,16 +16,33 @@ document.addEventListener('DOMContentLoaded', () => {
       const line = p.price * it.qty; subtotal += line;
       return `<div class="summary-line"><span>${p.title} × ${it.qty}</span><span>${formatCurrency(line)}</span></div>`;
     }).join('');
-    const coupon = (localStorage.getItem('coupon') || '').toUpperCase();
-    const discount = coupon === 'SAVE10' ? Math.round(subtotal * 0.10 * 100) / 100 : 0;
+    const coupon = localStorage.getItem('coupon') || '';
+    const discount = calculateCouponDiscount(coupon, subtotal);
+    const shipping = 0; // Free shipping
+    const total = Math.max(0, subtotal + shipping - discount);
+    
+    // Update summary display
     subEl.textContent = formatCurrency(subtotal);
-    totalEl.textContent = formatCurrency(Math.max(0, subtotal - discount));
+    const shippingEl = document.getElementById('summary-shipping');
+    if (shippingEl) shippingEl.textContent = 'Free';
+    const couponEl = document.getElementById('summary-coupon');
+    if (couponEl) {
+      if (coupon && discount > 0) {
+        couponEl.innerHTML = `<div class="summary-line"><span>Coupon (${coupon.toUpperCase()})</span><span>- ${formatCurrency(discount)}</span></div>`;
+      } else if (coupon && discount === 0) {
+        couponEl.innerHTML = `<div class="summary-line"><span>Coupon (${coupon.toUpperCase()})</span><span class="text-danger">Invalid</span></div>`;
+      } else {
+        couponEl.innerHTML = '';
+      }
+    }
+    totalEl.textContent = formatCurrency(total);
   }
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    // Clear cart and redirect
+    // Clear cart and coupon after successful order
     writeCart([]);
+    localStorage.removeItem('coupon');
     updateCartBadge();
     location.href = 'order-confirmation.html';
   });

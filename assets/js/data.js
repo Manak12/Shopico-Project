@@ -1,7 +1,7 @@
 // Simple in-memory catalog; images via picsum
 const CATEGORIES = ["All", "Accessories", "Apparel", "Electronics", "Home", "Outdoor"];
 
-const PRODUCTS = [
+let PRODUCTS = [
   { id: "p1", title: "Minimalist Wristwatch", brand: "Aurex", mrp: 199.0, price: 129.0, discount: 35, rating: 4.6, reviews: 1421, category: "Accessories", image: "https://picsum.photos/id/1062/800/600", delivery: "Free delivery by Tue", return: "7-day replacement", description: "A modern timepiece with sapphire glass and leather strap." },
   { id: "p2", title: "Noise-canceling Headphones", brand: "SonicPro", mrp: 329.0, price: 249.0, discount: 24, rating: 4.8, reviews: 2875, category: "Electronics", image: "https://picsum.photos/id/180/800/600", delivery: "Free delivery by Mon", return: "10-day return", description: "Immersive sound with active noise cancellation and 30h battery." },
   { id: "p3", title: "Ergonomic Office Chair", brand: "ErgoFlex", mrp: 449.0, price: 349.0, discount: 22, rating: 4.5, reviews: 964, category: "Home", image: "https://picsum.photos/id/83/800/600", delivery: "No-cost EMI available", return: "10-day return", description: "Adjustable lumbar support and breathable mesh back." },
@@ -28,5 +28,37 @@ const PRODUCTS = [
   , { id: "p24", title: "Stainless Cutlery Set", brand: "ChefHaus", mrp: 79.0, price: 54.0, discount: 32, rating: 4.3, reviews: 465, category: "Home", image: "https://picsum.photos/id/433/800/600", delivery: "Free delivery by Thu", return: "10-day return", description: "24‑piece set, dishwasher safe." }
   , { id: "p25", title: "Sports Socks (Pack of 3)", brand: "Stride", mrp: 19.0, price: 12.0, discount: 37, rating: 4.2, reviews: 1043, category: "Apparel", image: "https://picsum.photos/id/365/800/600", delivery: "Prime • Tomorrow", return: "7-day return", description: "Cushioned arch support." }
 ];
+
+// Ensure at least 20 products per category (except "All") by generating variants
+(function ensureTwentyPerCategory(){
+  const baseByCat = PRODUCTS.reduce((acc, p) => { (acc[p.category] ||= []).push(p); return acc; }, {});
+  const targetPerCat = 20;
+  const makeId = (prefix, i) => `${prefix}-${i}`;
+  const newItems = [];
+  for (const cat of CATEGORIES) {
+    if (cat === 'All') continue;
+    const arr = baseByCat[cat] || [];
+    for (let i = arr.length; i < targetPerCat; i++) {
+      const seed = arr[i % Math.max(1, arr.length)] || PRODUCTS[i % PRODUCTS.length];
+      const id = makeId(seed.id || cat.toLowerCase(), i+1);
+      newItems.push({
+        id,
+        title: `${seed.title} ${i+1}`,
+        brand: seed.brand,
+        mrp: Math.round((seed.mrp + (i%5)*3) * 100) / 100,
+        price: Math.max(5, Math.round((seed.price + (i%5)*2) * 100) / 100),
+        discount: seed.discount,
+        rating: Math.max(3.6, Math.min(4.9, seed.rating - 0.2 + ((i%5)*0.07))),
+        reviews: seed.reviews + i*7,
+        category: cat,
+        image: seed.image,
+        delivery: seed.delivery,
+        return: seed.return,
+        description: seed.description
+      });
+    }
+  }
+  PRODUCTS = PRODUCTS.concat(newItems);
+})();
 
 
