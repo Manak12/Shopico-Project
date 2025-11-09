@@ -59,8 +59,26 @@ document.addEventListener('DOMContentLoaded', () => {
         ${coupon && discount === 0 ? '<small class="text-danger mt-1 d-block">Invalid coupon code</small>' : ''}
         <div class="summary-line total"><span>Total</span><span>${formatCurrency(total)}</span></div>
         <div class="summary-line"><span>Delivery</span><span>Estimated in 2–4 days</span></div>
-        <a class="btn btn--primary" href="checkout.html">Checkout</a>
+        <button id="checkout-btn" class="btn btn--primary" type="button">Checkout</button>
       </aside>`;
+    // protect checkout: show login modal if not authenticated
+    const checkoutBtn = document.getElementById('checkout-btn');
+    if (checkoutBtn) {
+      checkoutBtn.onclick = (e) => {
+        if (typeof isAuthenticated === 'function' && !isAuthenticated()) {
+          const loginModalEl = document.getElementById('login-modal');
+          if (loginModalEl && window.bootstrap) {
+            const loginModal = bootstrap.Modal.getOrCreateInstance(loginModalEl);
+            loginModal.show();
+            showToast('Please sign in to proceed to checkout', 'default');
+            return;
+          }
+          showToast('Please sign in to proceed to checkout', 'default');
+          return;
+        }
+        location.href = 'checkout.html';
+      };
+    }
     const inp = document.getElementById('coupon-input');
     const applyBtn = document.getElementById('coupon-apply');
     const removeBtn = document.getElementById('coupon-remove');

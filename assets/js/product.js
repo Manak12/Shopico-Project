@@ -27,6 +27,17 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="col-auto"><button class="btn btn--primary" onclick="addToCart('${p.id}', 1)">Add to cart</button></div>
         <div class="col-auto"><a class="btn btn--primary" href="checkout.html" onclick="addToCart('${p.id}', 1)">Buy Now</a></div>
         <div class="col-auto"><a class="btn" href="cart.html">Go to cart</a></div>
+        <div class="col-auto">
+          <button 
+            class="btn${isInWishlist(p.id) ? ' wishlisted' : ''}" 
+            onclick="toggleWishlistItem('${p.id}')"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="${isInWishlist(p.id) ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" style="margin-right:6px">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+            ${isInWishlist(p.id) ? 'Remove from wishlist' : 'Add to wishlist'}
+          </button>
+        </div>
       </div>
     </div>`;
 });

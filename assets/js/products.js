@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     items = sortItems(items, sortKey);
     grid.innerHTML = items.map(renderCard).join('');
     empty.hidden = items.length !== 0;
+    updateWishlistUI(); // Update wishlist icons after rendering
   };
 
   search.addEventListener('input', apply);
@@ -47,6 +48,16 @@ function renderCard(p) {
   return `
     <article class="product-card">
       <a href="product.html?id=${p.id}"><img class="product-card__img" alt="${p.title}" src="${p.image}" loading="lazy"></a>
+      <button 
+        class="wishlist-icon${isInWishlist(p.id) ? ' wishlisted' : ''}" 
+        data-product-id="${p.id}"
+        onclick="event.preventDefault(); toggleWishlistItem('${p.id}');"
+        title="${isInWishlist(p.id) ? 'Remove from wishlist' : 'Add to wishlist'}"
+      >
+        <svg viewBox="0 0 24 24" fill="${isInWishlist(p.id) ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+      </button>
       <div class="product-card__body">
         <h3 class="product-card__title"><a class="link" href="product.html?id=${p.id}">${p.title}</a></h3>
         <div class="product-card__meta">

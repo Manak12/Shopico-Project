@@ -1,6 +1,88 @@
 // Utilities and layout scaffolding shared across pages
 
 const formatCurrency = (n) => `$${n.toFixed(2)}`;
+
+// Cart storage - each user has their own cart in localStorage
+const getCartKey = () => {
+  const sess = getSession();
+  return sess && sess.email ? `cart_${sess.email}` : 'cart_guest';
+};
+
+// Wishlist storage - each user has their own wishlist
+const getWishlistKey = () => {
+  const sess = getSession();
+  return sess && sess.email ? `wishlist_${sess.email}` : 'wishlist_guest';
+};
+
+const readWishlist = () => {
+  try { return JSON.parse(localStorage.getItem(getWishlistKey()) || "[]"); } catch { return []; }
+};
+
+const writeWishlist = (items) => {
+  localStorage.setItem(getWishlistKey(), JSON.stringify(items));
+  updateWishlistUI(); // Update any wishlist indicators
+};
+
+const toggleWishlistItem = (productId) => {
+  if (!isAuthenticated()) {
+    showToast('Please sign in to add items to your wishlist', 'default');
+    const loginModalEl = document.getElementById('login-modal');
+    if (loginModalEl && window.bootstrap) {
+      const loginModal = bootstrap.Modal.getOrCreateInstance(loginModalEl);
+      loginModal.show();
+    }
+    return false;
+  }
+  
+  const wishlist = readWishlist();
+  const idx = wishlist.indexOf(productId);
+  if (idx >= 0) {
+    wishlist.splice(idx, 1);
+    showToast('Removed from wishlist', 'default');
+  } else {
+    wishlist.push(productId);
+    showToast('Added to wishlist', 'success');
+  }
+  writeWishlist(wishlist);
+  return idx < 0; // returns true if added, false if removed
+};
+
+const isInWishlist = (productId) => {
+  return readWishlist().includes(productId);
+};
+
+// When user logs in, merge guest wishlist with their wishlist
+const mergeGuestWishlist = () => {
+  const guestItems = JSON.parse(localStorage.getItem('wishlist_guest') || '[]');
+  if (guestItems.length === 0) return;
+  
+  const userItems = readWishlist();
+  guestItems.forEach(id => {
+    if (!userItems.includes(id)) userItems.push(id);
+  });
+  writeWishlist(userItems);
+  localStorage.removeItem('wishlist_guest');
+};
+
+const updateWishlistUI = () => {
+  // Update all wishlist icons in the page
+  const icons = document.querySelectorAll('.wishlist-icon');
+  const wishlist = readWishlist();
+  icons.forEach(icon => {
+    const productId = icon.dataset.productId;
+    if (!productId) return;
+    const isWishlisted = wishlist.includes(productId);
+    icon.classList.toggle('wishlisted', isWishlisted);
+    icon.setAttribute('title', isWishlisted ? 'Remove from wishlist' : 'Add to wishlist');
+  });
+
+  // Update wishlist counter in header
+  const wishlistCount = document.getElementById('wishlist-count');
+  if (wishlistCount) {
+    wishlistCount.textContent = wishlist.length;
+  }
+};
+
 const showToast = (msg, variant = 'default') => {
   let host = document.getElementById('toast-host');
   if (!host) {
@@ -35,13 +117,277 @@ const showToast = (msg, variant = 'default') => {
 };
 
 const readCart = () => {
-  try { return JSON.parse(localStorage.getItem("cart") || "[]"); } catch { return []; }
+  try { return JSON.parse(localStorage.getItem(getCartKey()) || "[]"); } catch { return []; }
 };
-const writeCart = (cart) => { localStorage.setItem("cart", JSON.stringify(cart)); };
+const writeCart = (cart) => { localStorage.setItem(getCartKey(), JSON.stringify(cart)); };
+
+// When user logs in, merge guest cart with their cart
+const mergeGuestCart = () => {
+  const guestCart = JSON.parse(localStorage.getItem('cart_guest') || '[]');
+  if (guestCart.length === 0) return; // no guest items
+  
+  const userCart = readCart(); // gets cart for current user
+  guestCart.forEach(item => {
+    const existing = userCart.find(i => i.id === item.id);
+    if (existing) existing.qty += item.qty;
+    else userCart.push(item);
+  });
+  writeCart(userCart);
+  localStorage.removeItem('cart_guest'); // clean up guest cart
+  updateCartBadge();
+};
 
 const getProductById = (id) => PRODUCTS.find(p => p.id === id);
 
 const getQuery = () => new URLSearchParams(location.search);
+
+// -----------------------
+// Authentication helpers
+// -----------------------
+// Users are stored in localStorage under key `users` as array of { email, passwordHash, salt, createdAt }
+const encodeHex = (buffer) => Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+const fromHex = (hex) => {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i*2,2), 16);
+  return bytes;
+};
+
+const genSalt = (len = 16) => {
+  const arr = new Uint8Array(len);
+  crypto.getRandomValues(arr);
+  return encodeHex(arr.buffer);
+};
+
+const hashPassword = async (password, saltHex) => {
+  const encoder = new TextEncoder();
+  const pw = encoder.encode(password + saltHex);
+  const digest = await crypto.subtle.digest('SHA-256', pw);
+  return encodeHex(digest);
+};
+
+const getUsers = () => {
+  try { return JSON.parse(localStorage.getItem('users') || '[]'); } catch { return []; }
+};
+const saveUsers = (users) => localStorage.setItem('users', JSON.stringify(users));
+
+const findUserByEmail = (email) => getUsers().find(u => u.email.toLowerCase() === email.toLowerCase());
+
+const createUser = async (email, password, name) => {
+  if (findUserByEmail(email)) {
+    throw new Error('A user with this email already exists');
+  }
+  const salt = genSalt();
+  const passwordHash = await hashPassword(password, salt);
+  const u = { 
+    email, 
+    passwordHash, 
+    salt, 
+    name: name || email.split('@')[0], 
+    createdAt: new Date().toISOString() 
+  };
+  const users = getUsers(); 
+  users.push(u); 
+  saveUsers(users);
+  // Return user object without sensitive data
+  return {
+    email: u.email,
+    name: u.name,
+    createdAt: u.createdAt
+  };
+};
+
+// Seed some dummy users for testing (runs once if no users exist)
+const seedDummyUsers = async () => {
+  try {
+    let existing = getUsers();
+    
+    // Update existing users to ensure they have names
+    if (existing && existing.length > 0) {
+      let needsUpdate = false;
+      existing = existing.map(user => {
+        if (!user.name) {
+          needsUpdate = true;
+          user.name = user.email.split('@')[0];
+        }
+        return user;
+      });
+      if (needsUpdate) {
+        saveUsers(existing);
+      }
+      return;
+    }
+    
+    // Create new seed users if none exist
+    const seeds = [
+      { email: 'alice@example.com', password: 'password123', name: 'Alice Smith' },
+      { email: 'bob@example.com', password: 'mysecret', name: 'Bob Johnson' }
+    ];
+    for (const s of seeds) {
+      try {
+        await createUser(s.email, s.password, s.name);
+      } catch (e) {
+
+      }
+    }
+    console.info('Auth seed: created dummy users');
+  } catch (e) {
+    console.warn('Auth seed failed', e);
+  }
+};
+
+const authenticateUser = async (email, password) => {
+  const u = findUserByEmail(email);
+  if (!u) return null;
+  const h = await hashPassword(password, u.salt);
+  if (h === u.passwordHash) {
+    // Return full user object including name
+    return {
+      email: u.email,
+      name: u.name || u.email.split('@')[0],
+      createdAt: u.createdAt
+    };
+  }
+  return null;
+};
+
+// Session handling: store `auth` in localStorage with { email, provider, token, expiresAt }
+const createSession = (opts) => {
+  const token = genSalt(24);
+  const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24h
+  
+  // If we have an email, get the user's full info
+  if (opts.email) {
+    const user = findUserByEmail(opts.email);
+    if (user) {
+      opts.name = user.name;
+    }
+  }
+  
+  const auth = Object.assign({ token, expiresAt }, opts);
+  localStorage.setItem('auth', JSON.stringify(auth));
+  
+  // When creating a new session (login)
+  if (opts.email) {
+    // First check for backed up state from previous session
+    const backupCart = localStorage.getItem(`backup_cart_${opts.email}`);
+    const backupWishlist = localStorage.getItem(`backup_wishlist_${opts.email}`);
+    
+    if (backupCart) {
+      localStorage.setItem(`cart_${opts.email}`, backupCart);
+      localStorage.removeItem(`backup_cart_${opts.email}`);
+    }
+    
+    if (backupWishlist) {
+      localStorage.setItem(`wishlist_${opts.email}`, backupWishlist);
+      localStorage.removeItem(`backup_wishlist_${opts.email}`);
+    }
+    
+    // Then merge any guest data
+    mergeGuestCart();
+    mergeGuestWishlist();
+    
+    // Update UI to reflect restored state
+    updateCartBadge();
+    updateWishlistUI();
+  }
+  
+  updateAuthUi();
+  return auth;
+};
+
+const clearSession = () => { 
+  // Store current session email before clearing
+  const currentSession = getSession();
+  const userEmail = currentSession ? currentSession.email : null;
+  
+  // Clear auth
+  localStorage.removeItem('auth');
+  
+  // If we had a user session, save their state
+  if (userEmail) {
+    // Save user's cart and wishlist state before clearing
+    const userCart = JSON.parse(localStorage.getItem(`cart_${userEmail}`) || '[]');
+    const userWishlist = JSON.parse(localStorage.getItem(`wishlist_${userEmail}`) || '[]');
+    
+    // Store in temporary backup
+    if (userCart.length > 0) {
+      localStorage.setItem(`backup_cart_${userEmail}`, JSON.stringify(userCart));
+    }
+    if (userWishlist.length > 0) {
+      localStorage.setItem(`backup_wishlist_${userEmail}`, JSON.stringify(userWishlist));
+    }
+  }
+  
+  // Reset to guest state
+  writeCart([]);
+  writeWishlist([]);
+  
+  // Update UI
+  updateCartBadge();
+  updateWishlistUI();
+  updateAuthUi();
+};
+
+const getSession = () => {
+  try {
+    const a = JSON.parse(localStorage.getItem('auth') || 'null');
+    if (!a) return null;
+    if (a.expiresAt && Date.now() > a.expiresAt) { clearSession(); return null; }
+    return a;
+  } catch { return null; }
+};
+
+const isAuthenticated = () => !!getSession();
+
+const logout = () => {
+  // Get current location to handle special pages
+  const currentPath = window.location.pathname.toLowerCase();
+  const protectedPages = ['wishlist.html', 'checkout.html'];
+  
+  clearSession();
+  showToast('Logged out', 'default');
+  
+  // If on a protected page, redirect to home
+  if (protectedPages.some(page => currentPath.endsWith(page))) {
+    window.location.href = 'index.html';
+  }
+};
+
+const updateAuthUi = () => {
+  const sess = getSession();
+  const loginBtn = document.getElementById('login-btn');
+  const logoutBtn = document.getElementById('logout-btn');
+  const userEmailEl = document.getElementById('user-email');
+  if (sess) {
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (userEmailEl) {
+      // First try session name
+      let displayName = sess.name;
+      
+      // If no name in session but we have email
+      if (!displayName && sess.email) {
+        // Try to get from stored user data
+        const user = findUserByEmail(sess.email);
+        if (user && user.name) {
+          displayName = user.name;
+        } else {
+          // Fallback to email username
+          displayName = sess.email.split('@')[0];
+        }
+        // Update session with name for future use
+        sess.name = displayName;
+        localStorage.setItem('auth', JSON.stringify(sess));
+      }
+      
+      userEmailEl.textContent = displayName ? `Hello, ${displayName}` : '';
+    }
+    if (logoutBtn) logoutBtn.style.display = 'inline-block';
+  } else {
+    if (loginBtn) loginBtn.style.display = 'inline-block';
+    if (logoutBtn) logoutBtn.style.display = 'none';
+    if (userEmailEl) userEmailEl.textContent = '';
+  }
+};
 
 // Coupon code calculation - extracts discount percentage from codes like SAVE10, SAVE20, etc.
 const calculateCouponDiscount = (couponCode, subtotal) => {
@@ -82,7 +428,13 @@ const renderHeader = () => {
         <div class="nav-links">
           <a href="index.html">Home</a>
           <a href="products.html">Products</a>
+          <span id="user-email" class="user-email" style="margin-right:8px;font-weight:600;color:var(--muted)"></span>
           <button id="login-btn" class="btn btn-auth" type="button">Sign in</button>
+          <button id="logout-btn" class="btn btn-auth" type="button" style="display:none;margin-left:6px">Sign out</button>
+          <a class="cart-btn" href="wishlist.html">
+            Wishlist
+            <span id="wishlist-count" class="cart-count">0</span>
+          </a>
           <a class="cart-btn" href="cart.html">
             Cart
             <span id="cart-count" class="cart-count">0</span>
@@ -92,6 +444,10 @@ const renderHeader = () => {
     </nav>`;
   injectLoginModal();
   injectSignupModal();
+  // Wire logout button
+  const logoutBtnEl = document.getElementById('logout-btn');
+  if (logoutBtnEl) logoutBtnEl.onclick = () => { logout(); };
+  updateAuthUi();
 };
 
 const renderFooter = () => {
@@ -112,14 +468,18 @@ document.addEventListener('DOMContentLoaded', () => {
   renderHeader();
   renderFooter();
   updateCartBadge();
+  updateWishlistUI();
   // preload query in header search if present
   const q = getQuery();
   const qInput = document.getElementById('search-q');
   const qCat = document.getElementById('search-cat');
   if (qInput && q.get('q')) qInput.value = q.get('q');
   if (qCat && q.get('category')) qCat.value = q.get('category');
-  bindLogin();
-  bindSignup();
+  // seed dummy users for testing (non-destructive)
+  seedDummyUsers().then(() => {
+    bindLogin();
+    bindSignup();
+  });
 });
 
 // Optional: set your Google Client ID to enable real Google Sign-In via GIS
@@ -143,6 +503,11 @@ function injectSignupModal() {
         </div>
         <div class="modal-body login-modal-body">
           <form id="signup-form" autocomplete="on">
+            <div class="mb-4">
+              <label for="signup-name" class="form-label login-label">Name</label>
+              <input required id="signup-name" type="text" class="form-control login-input" placeholder="" />
+              <small class="login-error-message" id="signup-name-error"></small>
+            </div>
             <div class="mb-4">
               <label for="signup-email" class="form-label login-label">E-mail</label>
               <input required id="signup-email" type="email" class="form-control login-input" placeholder="" />
@@ -237,6 +602,49 @@ function injectLoginModal() {
     const style = document.createElement('style');
     style.id = 'login-modal-styles';
     style.textContent = `
+      /* Wishlist icon styles */
+      .wishlist-icon {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 32px;
+        height: 32px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: none;
+        padding: 0;
+        color: #9ca3af;
+        transition: all 0.2s ease;
+      }
+      .wishlist-icon:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      }
+      .wishlist-icon svg {
+        width: 20px;
+        height: 20px;
+        transition: all 0.2s ease;
+      }
+      .wishlist-icon.wishlisted {
+        color: #ef4444;
+      }
+      .wishlist-icon.wishlisted svg {
+        fill: currentColor;
+        filter: drop-shadow(0 1px 1px rgba(0,0,0,0.1));
+      }
+      @keyframes wishlistPop {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+      }
+      .wishlist-icon.wishlisted svg {
+        animation: wishlistPop 0.3s ease;
+      }
       .login-modal-custom .modal-dialog {
         max-width: 450px;
       }
@@ -552,10 +960,21 @@ function bindLogin() {
       return;
     }
     
-    // All validations passed
-    localStorage.setItem('auth', JSON.stringify({ email, provider: 'password' }));
-    if (modal) modal.hide();
-    showToast('Logged in successfully', 'success');
+    // All validations passed - authenticate against local user store
+    (async () => {
+      try {
+        const user = await authenticateUser(email, pass);
+        if (!user) {
+          if (msg) msg.textContent = 'Invalid email or password';
+          return;
+        }
+        createSession({ email: user.email, name: user.name, provider: 'password' });
+        if (modal) modal.hide();
+        showToast('Logged in successfully', 'success');
+      } catch (err) {
+        if (msg) msg.textContent = err.message || 'Login failed';
+      }
+    })();
   };
   
   // Google Sign-In (optional)
@@ -563,20 +982,26 @@ function bindLogin() {
     loadGoogleScript(() => {
       if (window.google && google.accounts && google.accounts.id) {
         google.accounts.id.initialize({
-          client_id: window.GOOGLE_CLIENT_ID,
-          callback: (response) => {
-            localStorage.setItem('auth', JSON.stringify({ provider: 'google', credential: response.credential }));
-            if (modal) modal.hide();
-            showToast('Signed in with Google', 'success');
-          }
-        });
+              client_id: window.GOOGLE_CLIENT_ID,
+              callback: (response) => {
+                // Try to extract email from the credential JWT payload if present
+                let emailFromJwt = '';
+                try {
+                  const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+                  if (payload && payload.email) emailFromJwt = payload.email;
+                } catch (e) { /* ignore */ }
+                createSession({ provider: 'google', credential: response.credential, email: emailFromJwt });
+                if (modal) modal.hide();
+                showToast('Signed in with Google', 'success');
+              }
+            });
       }
     });
   }
 }
 
 function simulateGoogleLogin(modal) {
-    localStorage.setItem('auth', JSON.stringify({ email: 'googleuser@example.com', provider: 'google' }));
+  createSession({ email: 'googleuser@example.com', provider: 'google' });
   if (modal) modal.hide();
   showToast('Signed in with Google', 'success');
 }
@@ -762,6 +1187,8 @@ function bindSignup() {
   
   if (form) form.onsubmit = (e) => {
     e.preventDefault();
+    const nameInput = document.getElementById('signup-name');
+    const name = nameInput ? nameInput.value.trim() : '';
     const email = emailInput ? emailInput.value.trim() : '';
     const password = passwordInput ? passwordInput.value : '';
     const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : '';
@@ -771,6 +1198,7 @@ function bindSignup() {
     if (emailError) emailError.textContent = '';
     if (passwordError) passwordError.textContent = '';
     if (confirmPasswordError) confirmPasswordError.textContent = '';
+    if (nameInput) nameInput.classList.remove('is-invalid');
     if (emailInput) emailInput.classList.remove('is-invalid');
     if (passwordInput) passwordInput.classList.remove('is-invalid');
     if (confirmPasswordInput) confirmPasswordInput.classList.remove('is-invalid');
@@ -803,13 +1231,29 @@ function bindSignup() {
       return;
     }
     
-    // All validations passed
-    localStorage.setItem('auth', JSON.stringify({ email, provider: 'password' }));
-    if (modal) modal.hide();
-    showToast('Account created successfully!', 'success');
+    // Validate name
+    if (!name) {
+      const nameError = document.getElementById('signup-name-error');
+      if (nameError) nameError.textContent = 'Name is required';
+      if (nameInput) nameInput.classList.add('is-invalid');
+      return;
+    }
+
+    // All validations passed - create user and auto-login
+    (async () => {
+      try {
+        const user = await createUser(email, password, name);
+        createSession({ 
+          email: user.email, 
+          name: user.name,
+          provider: 'password' 
+        });
+        if (modal) modal.hide();
+        showToast('Account created successfully!', 'success');
+      } catch (err) {
+        if (msg) msg.textContent = err.message || 'Sign up failed';
+      }
+    })();
   };
 }
  
-
-
-

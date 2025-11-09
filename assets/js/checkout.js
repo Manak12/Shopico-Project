@@ -40,6 +40,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+    // require auth
+    if (typeof isAuthenticated === 'function' && !isAuthenticated()) {
+      const loginModalEl = document.getElementById('login-modal');
+      if (loginModalEl && window.bootstrap) {
+        const loginModal = bootstrap.Modal.getOrCreateInstance(loginModalEl);
+        loginModal.show();
+      }
+      showToast('Please sign in to complete your order', 'default');
+      return;
+    }
     // Clear cart and coupon after successful order
     writeCart([]);
     localStorage.removeItem('coupon');
